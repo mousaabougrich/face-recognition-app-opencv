@@ -1,0 +1,55 @@
+import cv2
+import numpy as np #♦ for arrays 
+import mysql.connector
+#for dection of face
+faceDet=cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+cam=cv2.VideoCapture(0)#♦ 0 for default camera
+def insert_update(ID, name, job):
+    try:
+        connection = mysql.connector.connect(
+            host='127.0.0.1',
+            database='facesmart',
+            user='root',
+             # You should add your database password here
+        )
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM Emp WHERE ID=%s", (ID,))
+        record = cursor.fetchone()
+
+        if record:
+            cursor.execute("UPDATE Emp SET Name=%s, Job=%s WHERE ID=%s", (name, job, ID))
+        else:
+            cursor.execute("INSERT INTO Emp (ID, Name, Job) VALUES (%s, %s, %s)", (ID, name, job))
+        connection.commit()
+        print(f"Information for ID {ID} updated/inserted successfully.")
+    except mysql.connector.Error as error:
+        print(f"Failed to update/insert record to database rollback: {error}")
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+            print("MySQL connection is closed")
+
+# isert user defined values
+ID=input('enter user ID  :  ')
+name=input('enter user name   :')
+job=input('enter user job   :   ')
+insert_update(ID,name,job)
+#detect face in web camera 
+sampleNum=0
+while(True):
+    ret,img=cam.read()
+    gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    faces=faceDet.detectMultiScale(gray,1.3,5)
+    for(x,y,w,h) in faces:
+        sampleNum=sampleNum+1 # if the user detected then increment the sample number
+        cv2.imwrite("dataSet/user."+str(ID)+"."+str(sampleNum)+".jpg",gray[y:y+h,x:x+w])
+        cv2.rectangle(img,(x,y),(x+w,y+h),(0,0,255),2)
+        cv2.waitKey(100)
+    cv2.imshow('Face',img)
+    cv2.waitKey(1)
+    if sampleNum>20:
+        break
+     
+cam.release()
+cv2.destroyAllWindows()
